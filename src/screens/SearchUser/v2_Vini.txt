@@ -1,0 +1,101 @@
+import React, { useState, useEffect } from "react";
+import { FlatList, Text, View, Alert } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { useAuth } from "../../contexts/AuthContext";
+import UserContent from "../../components/UserContent";
+import api from "../../services/api";
+import {
+  Container,
+  Header,
+  Icon,
+  Description,
+  InfoText,
+  Input,
+  Button,
+  ButtonText,
+  Footer,
+} from "./styles";
+
+export default function SearchUser() {
+  const [users, setUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const navigation = useNavigation();
+  const { user: currentUser } = useAuth();
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const response = await api.get("/users");
+        setUsers(response.data);
+        setLoading(false);
+      } catch (error) {
+        console.error("Erro ao buscar usuários:", error);
+        Alert.alert("Erro", "Não foi possível carregar a lista de usuários.");
+        setLoading(false);
+      }
+    }
+
+    fetchUsers();
+  }, []);
+
+  const filterUsers = users.filter(
+    (user) => user.login.toLowerCase().startsWith(searchTerm.toLowerCase())
+  );
+
+  const handleOpenProfile = (userData) => {
+    navigation.navigate("Profile", { userData });
+  };
+
+  if (loading) {
+    return <Text>Carregando...</Text>; // ou seu componente de loading
+  }
+
+  return (
+    <Container>
+      <Header>
+        <Icon name="users" size={24} color="#2F80ED" />
+        <Description>
+          Procurando um usuário? Digite o apelido do usuário e vamos
+          procurá-lo!
+        </Description>
+      </Header>
+
+      <InfoText>
+        Digite o apelido exato do usuário para obter resultados.
+      </InfoText>
+
+      <Input
+        placeholder="Digite o apelido..."
+        value={searchTerm}
+        onChangeText={setSearchTerm}
+      />
+
+      {searchTerm.length > 0 ? (
+        filterUsers.length > 0 ? (
+          <FlatList
+            data={filterUsers}
+            keyExtractor={(item) => item.login}
+            renderItem={({ item }) => (
+              <UserContent userData={item} onPress={() => handleOpenProfile(item)} />
+            )}
+          />
+        ) : (
+          <Text style={{ textAlign: 'center', marginTop: 20, color: '#fff' }}>
+            Nenhum usuário encontrado.
+          </Text>
+        )
+      ) : (
+        <View style={{ flex: 1 }} />
+      )}
+
+      <Footer>
+        <View></View>
+        <Button onPress={() => {}}>
+          <Icon name="search" size={24} color="#fff" />
+          <ButtonText>Buscar</ButtonText>
+        </Button>
+      </Footer>
+    </Container>
+  );
+}

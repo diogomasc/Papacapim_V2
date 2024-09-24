@@ -1,0 +1,149 @@
+import React, { useState, useEffect } from "react";
+import { View, Text, Pressable, Alert, ActivityIndicator } from "react-native";
+import { useAuth } from "../../contexts/AuthContext";
+import { Feather } from "@expo/vector-icons";
+import api from "../../services/api";
+import FollowersModal from "../../modals/FollowersModal";
+import {
+  Container,
+  CloseButton,
+  Header,
+  Title,
+  Subtitle,
+  Info,
+  FollowButton,
+  FollowButtonText,
+  FollowersContainer,
+  FollowersInfo,
+  FollowersLink,
+} from "./styles";
+
+const Profile = ({ route, navigation }) => {
+  const { userData } = route.params;
+  const { user: currentUser } = useAuth();
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [followerId, setFollowerId] = useState(null);
+  const [followers, setFollowers] = useState([]);
+  const [followersModalVisible, setFollowersModalVisible] = useState(false); // Estado para modal de seguidores
+
+  useEffect(() => {
+    async function verifyFollowers() {
+      try {
+        const response = await api.get(`/users/${userData.login}/followers`);
+        const data = response.data;
+
+        navigation.setOptions({
+          drawerLockMode: "locked-closed",
+          headerShown: false,
+        });
+
+        console.log(
+          `Dados de seguidores de ${userData.login}:`,
+          JSON.stringify(data)
+        );
+
+        const follower = data.find(
+          (follower) => follower.follower_login === currentUser.login
+        );
+
+        if (follower) {
+          setIsFollowing(true);
+          setFollowerId(follower.id);
+        } else {
+          setIsFollowing(false);
+        }
+
+        setFollowers(data);
+        setLoading(false);
+      } catch (error) {
+        console.error("Erro ao verificar seguidores:", error);
+        Alert.alert(
+          "Erro",
+          "Não foi possível carregar os dados de seguidores."
+        );
+        setLoading(false);
+      }
+    }
+
+    verifyFollowers();
+  }, [userData.login, currentUser.login]);
+
+  async function handleFollow() {
+    try {
+      if (isFollowing && followerId) {
+        await api.delete(`/users/${userData.login}/followers/${followerId}`);
+        setIsFollowing(false);
+      } else {
+        const response = await api.post(`/users/${userData.login}/followers`);
+        setIsFollowing(true);
+        setFollowerId(response.data.id);
+      }
+      // Atualiza a lista de seguidores após seguir/deixar de seguir
+      const updatedFollowers = await api.get(
+        `/users/${userData.login}/followers`
+      );
+      setFollowers(updatedFollowers.data);
+    } catch (error) {
+      console.error("Erro ao seguir/deixar de seguir:", error);
+      Alert.alert(
+        "Erro",
+        "Não foi possível realizar a operação. Por favor, tente novamente."
+      );
+    }
+  }
+
+  // Função para abrir o modal de seguidores
+  const handleOpenFollowersModal = () => {
+    setFollowersModalVisible(true);
+  };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  return (
+    <Container>
+      <CloseButton onPress={() => navigation.goBack()}>
+        <Feather name="x" size={24} color="#2F80ED" />
+      </CloseButton>
+      <Header>
+        <Title>{userData.name}</Title>
+        <Subtitle>@{userData.login}</Subtitle>
+        <Info>
+          Usuário desde:{" "}
+          {new Date(userData.created_at).toLocaleDateString("pt-BR")}
+        </Info>
+      </Header>
+
+      {currentUser.login !== userData.login && (
+        <FollowButton onPress={handleFollow} isFollowing={isFollowing}>
+          <FollowButtonText>
+            {isFollowing ? "Deixar de Seguir" : "Seguir"}
+          </FollowButtonText>
+        </FollowButton>
+      )}
+
+      <FollowersContainer onPress={handleOpenFollowersModal}>
+        <FollowersInfo>
+          {followers.length}{" "}
+          {followers.length === 1 ? "Seguidor" : "Seguidores"}
+        </FollowersInfo>
+        <FollowersLink>Ver todos os seguidores</FollowersLink>
+      </FollowersContainer>
+
+      <FollowersModal
+        visible={followersModalVisible}
+        onClose={() => setFollowersModalVisible(false)}
+        followers={followers}
+        userLogin={userData.login}
+      />
+    </Container>
+  );
+};
+
+export default Profile;
