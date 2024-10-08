@@ -43,8 +43,8 @@ Papacapim permite que os usuários publiquem postagens curtas, curtam, comentem 
 1. **Clone o Repositório**:
 
    ```bash
-   git clone https://github.com/diogomasc/Papacapim.git
-   cd Papacapim
+   git clone https://github.com/diogomasc/Papacapim_v2.git
+   cd Papacapim_v2
    ```
 
 2. **Instale as Dependências**:
